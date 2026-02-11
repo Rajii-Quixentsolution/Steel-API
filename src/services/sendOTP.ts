@@ -175,4 +175,4 @@ export const sendVerificationCode = async (
   };
 };
 
-export { OTP_EXPIRY_MS, MAX_OTP_ATTEMPTS };
+export { OTP_EXPIRY_MS, MAX_OTP_ATTEMPTS, OTP_RATE_LIMIT_MS, MAX_DAILY_OTP_REQUESTS };

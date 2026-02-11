@@ -5,6 +5,12 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import authRouter from "./routes/auth";
+import stockRouter from "./routes/stock";
+import stockDispatchRouter from "./routes/stockDispatch";
+import barbenderRouter from "./routes/barbender";
+import mappingRouter from "./routes/mapping";
+import purchaseRouter from "./routes/purchase";
+import productRouter from "./routes/product";
 
 const app = express();
 
@@ -25,6 +31,12 @@ app.get("/health", (_req, res) => {
 
 // API Routes
 app.use("/v1/auth", authRouter);
+app.use("/v1/stock", stockRouter);
+app.use("/v1/stock-dispatch", stockDispatchRouter);
+app.use("/v1/barbender", barbenderRouter);
+app.use("/v1/mapping", mappingRouter);
+app.use("/v1/purchase", purchaseRouter);
+app.use("/v1/product", productRouter);
 
 // Test endpoint
 app.get("/test", (_req, res) => {
@@ -33,6 +45,58 @@ app.get("/test", (_req, res) => {
     message: "Steel API is running",
     timestamp: new Date().toISOString()
   });
+});
+
+// DEBUG: List all users (no auth)
+app.get("/debug-users", async (_req, res) => {
+  try {
+    const User = require("./models/User").default;
+    const asos = await User.find({ role: "ASO" }).select("name phoneNo role status");
+    const dealers = await User.find({ role: "DLR" }).select("name phoneNo role status");
+    const barbenders = await User.find({ role: "BBR" }).select("name phoneNo role status");
+    res.json({ asos, dealers, barbenders });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Debug endpoint to check request
+app.post("/debug", (req, res) => {
+  console.log("Debug received:", JSON.stringify(req.body, null, 2));
+  res.json({ received: req.body });
+});
+
+// DEBUG: Get dealer balance
+app.get("/debug/dealer-balance", async (req, res) => {
+  try {
+    const { dealerId } = req.query;
+    const User = require("./models/User").default;
+    const dealer = await User.findById(dealerId);
+    if (!dealer) return res.status(404).json({ error: "Dealer not found" });
+    res.json({ name: dealer.name, totalQuantityAvailable: dealer.totalQuantityAvailable });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DEBUG: Test delete mapping
+app.delete("/debug/delete-mapping", async (req, res) => {
+  try {
+    const { adminId, dealerId } = req.query;
+    const User = require("./models/User").default;
+    
+    const dealer = await User.findById(dealerId);
+    if (!dealer) {
+      return res.status(404).json({ error: "Dealer not found" });
+    }
+
+    dealer.assignedASO = undefined;
+    await dealer.save();
+
+    res.json({ success: true, message: "Mapping removed (debug)" });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Connect to MongoDB and start server
