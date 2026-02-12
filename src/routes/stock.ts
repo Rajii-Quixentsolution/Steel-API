@@ -69,12 +69,12 @@ router.post("/aso/dispatch", async (req: Request, res: Response) => {
 
     const now = new Date();
     const dispatch = await new StockDispatch({
-      asoId: aso._id, asoName: aso.name,
-      dealerId: dealer._id, dealerName: dealer.name,
-      productId: product._id, productName: product.productName, productCode: product.productCode,
+      asoId: aso._id,
+      dealerId: dealer._id,
+      productId: product._id,
       quantityKg: parseFloat(quantityKg),
       dispatchDateTime: now,
-      dayNumber: getDayNumber(now),
+      sequentialDay: getDayNumber(now),
       status: DispatchStatus.PENDING,
       notes
     }).save();
@@ -84,10 +84,8 @@ router.post("/aso/dispatch", async (req: Request, res: Response) => {
       message: "Stock dispatched successfully",
       dispatch: {
         id: dispatch._id,
-        dealerName: dealer.name,
-        productName: product.productName,
         quantityKg: dispatch.quantityKg,
-        dispatchDateTime: dispatch.dispatchDateTime,
+        sequentialDay: dispatch.sequentialDay,
         status: dispatch.status
       }
     });
@@ -134,7 +132,6 @@ router.put("/dealer/receive/:id", async (req: Request, res: Response) => {
 
     const now = new Date();
     dispatch.status = DispatchStatus.RECEIVED;
-    dispatch.isReceived = true;
     dispatch.receivedDateTime = now;
     await dispatch.save();
 
@@ -151,9 +148,12 @@ router.put("/dealer/receive/:id", async (req: Request, res: Response) => {
 
     if (!dailyStock) {
       dailyStock = await new DailyStock({
-        dealerId: dealer._id, dealerName: dealer.name,
-        date: today, dayNumber: getDayNumber(today),
-        totalReceivedKg: 0, totalDispatchedKg: 0, availableBalanceKg: dealer.totalQuantityAvailable
+        dealerId: dealer._id,
+        date: today,
+        sequentialDay: getDayNumber(today),
+        totalReceivedKg: 0,
+        totalDispatchedKg: 0,
+        availableBalanceKg: dealer.totalQuantityAvailable
       }).save();
     }
 

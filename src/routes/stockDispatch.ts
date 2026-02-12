@@ -52,31 +52,25 @@ router.post("/dispatch", async (req: Request, res: Response) => {
 
     const now = new Date();
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const dayNumber = Math.floor((Date.now() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const sequentialDay = Math.floor((Date.now() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     const dispatch = await new StockDispatch({
       asoId: new mongoose.Types.ObjectId(asoId),
-      asoName: aso.name,
       dealerId: new mongoose.Types.ObjectId(dealerId),
-      dealerName: dealer.name,
       productId: new mongoose.Types.ObjectId(productId),
-      productName: product.productName,
-      productCode: product.productCode,
       quantityKg: parseFloat(quantityKg),
       dispatchDateTime: now,
-      dayNumber,
+      sequentialDay,
       status: DispatchStatus.PENDING
     }).save();
 
     res.json({ 
       success: true, 
-      message: `Stock dispatched to ${dealer.name}`, 
+      message: `Stock dispatched`, 
       dispatch: { 
         _id: dispatch._id, 
-        dealerName: dealer.name, 
-        productName: product.productName, 
         quantityKg: dispatch.quantityKg, 
-        dayNumber: dispatch.dayNumber 
+        sequentialDay: dispatch.sequentialDay 
       } 
     });
   } catch (error: any) {
@@ -84,16 +78,13 @@ router.post("/dispatch", async (req: Request, res: Response) => {
   }
 });
 
-// Dealer: Get Pending Stock (check both isReceived: false AND dispatches with no isReceived field)
+// Dealer: Get Pending Stock
 router.get("/pending", async (req: Request, res: Response) => {
   try {
     const { dealerId } = req.query;
     const dispatches = await StockDispatch.find({
       dealerId,
-      $or: [
-        { isReceived: false },
-        { isReceived: { $exists: false } }
-      ]
+      status: DispatchStatus.PENDING
     })
       .populate("productId", "productName productCode")
       .populate("asoId", "name phoneNo")
@@ -108,10 +99,10 @@ router.get("/pending", async (req: Request, res: Response) => {
 router.get("/received", async (req: Request, res: Response) => {
   try {
     const { dealerId } = req.query;
-    const dispatches = await StockDispatch.find({ dealerId, isReceived: true })
+    const dispatches = await StockDispatch.find({ dealerId, status: DispatchStatus.RECEIVED })
       .populate("productId", "productName productCode")
       .populate("asoId", "name phoneNo")
-      .sort({ receivedDate: -1 });
+      .sort({ receivedDateTime: -1 });
     res.json({ dispatches });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -125,9 +116,8 @@ router.post("/receive", async (req: Request, res: Response) => {
     const dispatch = await StockDispatch.findById(dispatchId);
     if (!dispatch) return res.status(404).json({ error: "Dispatch not found" });
     if (dispatch.dealerId.toString() !== dealerId) return res.status(403).json({ error: "Not your dispatch" });
-    if (dispatch.isReceived) return res.status(400).json({ error: "Already received" });
+    if (dispatch.status === DispatchStatus.RECEIVED) return res.status(400).json({ error: "Already received" });
 
-    dispatch.isReceived = true;
     dispatch.status = DispatchStatus.RECEIVED;
     dispatch.receivedDateTime = new Date();
     await dispatch.save();
@@ -153,12 +143,12 @@ router.get("/summary/:dealerId", async (req: Request, res: Response) => {
   try {
     const { dealerId } = req.params;
     const summary = await StockDispatch.aggregate([
-      { $match: { dealerId: new mongoose.Types.ObjectId(dealerId), isReceived: true } },
-      { $group: { _id: "$dayNumber", totalKg: { $sum: "$quantityKg" }, count: { $sum: 1 }, date: { $first: "$dispatchDate" } } },
+      { $match: { dealerId: new mongoose.Types.ObjectId(dealerId), status: DispatchStatus.RECEIVED } },
+      { $group: { _id: "$sequentialDay", totalKg: { $sum: "$quantityKg" }, count: { $sum: 1 }, date: { $first: "$dispatchDateTime" } } },
       { $sort: { _id: 1 } }
     ]);
     const totalReceived = await StockDispatch.aggregate([
-      { $match: { dealerId: new mongoose.Types.ObjectId(dealerId), isReceived: true } },
+      { $match: { dealerId: new mongoose.Types.ObjectId(dealerId), status: DispatchStatus.RECEIVED } },
       { $group: { _id: null, total: { $sum: "$quantityKg" } } }
     ]);
     res.json({ dayWise: summary, totalReceived: totalReceived[0]?.total || 0 });

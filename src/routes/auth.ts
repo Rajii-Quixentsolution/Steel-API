@@ -162,12 +162,12 @@ router.post("/dealer/create-barbender", async (req: Request, res: Response) => {
     const existing = await User.findOne({ phoneNo: parseInt(phoneNo) });
     if (existing) return res.status(400).json({ error: "Phone number already registered" });
 
-    const now = new Date();
     const barbender = await new User({
       countryCode: countryCode || "91", phoneNo: parseInt(phoneNo), name, email, role: UserRole.BARBENDER,
-      status: UserStatus.PENDING, createdByDealer: new mongoose.Types.ObjectId(dealerId),
-      totalQuantityAvailable: 0, totalRewardEligible: 0, createdBy: new mongoose.Types.ObjectId(dealerId),
-      createdAt: now, updatedAt: now, isDeleted: false
+      status: UserStatus.PENDING,
+      createdBy: new mongoose.Types.ObjectId(dealerId),
+      totalQuantityAvailable: 0, totalRewardEligible: 0,
+      isDeleted: false
     }).save();
 
     res.json({ success: true, message: "Barbender created. User must verify via OTP.", user: { id: barbender._id, name: barbender.name, phoneNo: barbender.phoneNo, role: barbender.role, status: barbender.status } });
@@ -279,7 +279,7 @@ router.get("/dealer/barbenders", async (req: Request, res: Response) => {
     const { dealerId } = req.query;
     const dealer = await User.findById(dealerId);
     if (!dealer || dealer.role !== UserRole.DEALER) return res.status(403).json({ error: "Invalid dealer" });
-    const barbenders = await User.find({ role: UserRole.BARBENDER, createdByDealer: dealer._id, isDeleted: false }).select("name phoneNo status totalQuantityAvailable totalRewardEligible");
+    const barbenders = await User.find({ role: UserRole.BARBENDER, createdBy: dealer._id, isDeleted: false }).select("name phoneNo status totalQuantityAvailable totalRewardEligible");
     res.json({ barbenders });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -297,7 +297,7 @@ router.put("/dealer/barbender/:id/status", async (req: Request, res: Response) =
     if (!dealer || dealer.role !== UserRole.DEALER) return res.status(403).json({ error: "Invalid dealer" });
     const barbender = await User.findById(id);
     if (!barbender || barbender.role !== UserRole.BARBENDER) return res.status(404).json({ error: "Barbender not found" });
-    if (barbender.createdByDealer?.toString() !== dealerId) return res.status(403).json({ error: "Not your barbender" });
+    if (barbender.createdBy?.toString() !== dealerId) return res.status(403).json({ error: "Not your barbender" });
     if (status === "blocked") barbender.status = UserStatus.BLOCKED;
     else if (status === "deleted") { barbender.status = UserStatus.DELETED; barbender.isDeleted = true; }
     barbender.updatedAt = new Date();
