@@ -109,10 +109,8 @@ mongoose
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Steel API running on port ${PORT}`);
       console.log(`📱 Allowed Users:`);
-      console.log(`   SA (Super Admin): 9999999999`);
-      console.log(`   ASO: 8888888888`);
-      console.log(`   DLR (Dealer): 7777777777`);
-      console.log(`   BBR (Barbender): 6666666666`);
+      console.log(`   SA (Super Admin): 8888888888`);
+      
     });
   })
   .catch((error) => {
