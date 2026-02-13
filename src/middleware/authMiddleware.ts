@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "steel-project-secret-key-2024";
+import { verifyAuthToken, generateToken } from "../services/authService";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -11,7 +9,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     
@@ -21,29 +19,33 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     const token = authHeader.split(" ")[1];
     
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      _id: string;
-      role: string;
-      phoneNo: number;
-    };
+    const result = await verifyAuthToken(token);
+    
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
 
-    req.user = decoded;
+    req.user = {
+      _id: result.user._id.toString(),
+      role: result.user.role,
+      phoneNo: result.user.phoneNo
+    };
     next();
   } catch (error: any) {
     return res.status(401).json({ error: "Invalid token" });
   }
 };
 
-export const verifyToken = (token: string): { _id: string; role: string; phoneNo: number } | null => {
-  try {
-    return jwt.verify(token, JWT_SECRET) as { _id: string; role: string; phoneNo: number };
-  } catch {
-    return null;
-  }
+export const verifyToken = async (token: string): Promise<{ _id: string; role: string; phoneNo: number } | null> => {
+  const result = await verifyAuthToken(token);
+  if (!result.success) return null;
+  return {
+    _id: result.user._id.toString(),
+    role: result.user.role,
+    phoneNo: result.user.phoneNo
+  };
 };
 
-export const generateToken = (user: { _id: string; role: string; phoneNo: number }): string => {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: "30d" });
-};
+export { generateToken };
 
 export default authMiddleware;

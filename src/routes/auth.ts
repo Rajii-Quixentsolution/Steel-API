@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { OtpModel } from "../models/Otp";
 import { OtpRateLimitModel } from "../models/OtpRateLimit";
 import User, { UserRole, UserStatus } from "../models/User";
-import { generateToken } from "../services/authService";
+import { generateToken, verifyAuthToken, refreshAuthToken } from "../services/authService";
 import { sendVerificationCode, generateOtp, createPhoneKey, OTP_EXPIRY_MS, OTP_RATE_LIMIT_MS, MAX_DAILY_OTP_REQUESTS } from "../services/sendOTP";
 
 const router = Router();
@@ -182,11 +182,17 @@ router.post("/dealer/create-barbender", async (req: Request, res: Response) => {
 router.get("/profile", async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: "No token provided" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
     const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = await User.findById(decoded.id);
-    if (!user || user.isDeleted) return res.status(404).json({ error: "User not found" });
+    
+    const result = await verifyAuthToken(token);
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
+    
+    const user = result.user;
     res.json({ 
       user: { 
         _id: user._id, 
@@ -214,11 +220,17 @@ router.get("/profile", async (req: Request, res: Response) => {
 router.put("/profile", async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: "No token provided" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
     const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = await User.findById(decoded.id);
-    if (!user || user.isDeleted) return res.status(404).json({ error: "User not found" });
+    
+    const result = await verifyAuthToken(token);
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
+    
+    const user = result.user;
 
     const { name, email, profilePhoto } = req.body;
     if (name) user.name = name;
