@@ -5,11 +5,11 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import authRouter from "./routes/auth";
-import stockRouter from "./routes/stock";
-import stockDispatchRouter from "./routes/stockDispatch";
-import barbenderRouter from "./routes/barbender";
 import mappingRouter from "./routes/mapping";
 import productRouter from "./routes/product";
+import dashboardRouter from "./routes/dashboard";
+import areaRouter from "./routes/area";
+import stockDispatchRouter from "./routes/stock-dispatch";
 
 const app = express();
 
@@ -28,13 +28,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// API Routes
+// API Routes - Using lead's models
 app.use("/v1/auth", authRouter);
-app.use("/v1/stock", stockRouter);
-app.use("/v1/stock-dispatch", stockDispatchRouter);
-app.use("/v1/barbender", barbenderRouter);
 app.use("/v1/mapping", mappingRouter);
 app.use("/v1/product", productRouter);
+app.use("/v1/dashboard", dashboardRouter);
+app.use("/v1/area", areaRouter);
+app.use("/v1/stock-dispatch", stockDispatchRouter); 
 
 // Test endpoint
 app.get("/test", (_req, res) => {

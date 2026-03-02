@@ -4,14 +4,14 @@ export enum UserRole {
   SUPER_ADMIN = "SA",
   ASO = "ASO",
   DEALER = "DLR",
-  BARBENDER = "BBR"
+  BARBENDER = "BBR",
 }
 
 export enum UserStatus {
   PENDING = "pending",
   ACTIVE = "active",
   BLOCKED = "blocked",
-  DELETED = "deleted"
+  DELETED = "deleted",
 }
 
 export interface IUser extends Document {
@@ -22,7 +22,7 @@ export interface IUser extends Document {
   role: UserRole;
   status: UserStatus;
   profilePhoto?: string;
-  qrCode?: string; // Base64 QR code for barbenders
+  qrCode?: string;
   createdBy?: mongoose.Types.ObjectId;
   assignedASO?: mongoose.Types.ObjectId;
   mappedDealers?: mongoose.Types.ObjectId[];
@@ -32,38 +32,59 @@ export interface IUser extends Document {
   deviceToken?: string;
   fcmToken?: string;
   isDeleted: boolean;
-  createdAt: Date; 
+  createdAt: Date;
   updatedAt: Date;
+  updatedBy?: mongoose.Types.ObjectId;
 }
 
-const userSchema = new Schema<IUser>({
-  name: { type: String, required: true, trim: true },
-  email: { 
-    type: String, 
-    lowercase: true,
-    trim: true,
-    match: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/
-  },
-  countryCode: { type: String, required: true },
-  phoneNo: { type: Number, required: true, unique: true },
-  role: { type: String, enum: Object.values(UserRole), required: true },
-  status: { type: String, enum: Object.values(UserStatus), default: UserStatus.PENDING },
-  profilePhoto: { type: String },
-  qrCode: { type: String }, // Base64 QR code for barbenders
-  createdBy: { type: Schema.Types.ObjectId, ref: "User" },
-  assignedASO: { type: Schema.Types.ObjectId, ref: "User" },
-  mappedDealers: [{ type: Schema.Types.ObjectId, ref: "User" }],
-  totalQuantityAvailable: { type: Number, default: 0, min: 0 },  
-  totalRewardEligible: { type: Number, default: 0, min: 0 },     
-  lastOTPValidated: { type: Date },
-  deviceToken: { type: String },
-  fcmToken: { type: String },
-  isDeleted: { type: Boolean, default: false }
-}, { timestamps: true });
+const userSchema = new Schema<IUser>(
+  {
+    name: { type: String, required: true, trim: true },
+    countryCode: { type: String, required: true },
+    phoneNo: { type: Number, required: true, unique: true },
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      match: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+    },
+    role: { type: String, enum: Object.values(UserRole), required: true },
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      default: UserStatus.PENDING,
+    },
+    profilePhoto: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "fs.files",
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastOTPValidated: { type: Date },
+    deviceToken: { type: String },
+    fcmToken: { type: String },
 
-userSchema.index({ phoneNo: 1 });
-userSchema.index({ role: 1, status: 1 });
-userSchema.index({ createdBy: 1 });
-userSchema.index({ assignedASO: 1 });
+    assignedASO: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    mappedDealers: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User" 
+    }],
+    qrCode: { type: String },
+    isDeleted: { type: Boolean, default: false },
+    totalQuantityAvailable: { type: Number, default: 0 },
+    totalRewardEligible: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+);
 
 export default mongoose.model<IUser>("User", userSchema);

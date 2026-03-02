@@ -9,7 +9,7 @@ export enum ProductUnit {
   KG = "kg",
   TON = "ton",
   PIECE = "piece",
-  METER = "meter"
+  METER = "meter",
 }
 
 export interface IProduct extends Document {
@@ -26,19 +26,30 @@ export interface IProduct extends Document {
   createdBy: mongoose.Types.ObjectId;
 }
 
-const productSchema = new Schema<IProduct>({
-  productCode: { type: String, required: true, unique: true },
-  productName: { type: String, required: true },
-  category: { type: String, enum: Object.values(ProductCategory), required: true },
-  thicknessInch: { type: Number, required: true },
-  grade: { type: String },
-  length: { type: Number ,min: 0 },
-  weightPerUnit: { type: Number ,min: 0 },
-  unit: { type: String, enum: Object.values(ProductUnit), default: ProductUnit.KG },
-  pricePerUnit: { type: Number, required: true , min: 0 },
-  isActive: { type: Boolean, default: true },
-  createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
-}, { timestamps: true });
+const productSchema = new Schema<IProduct>(
+  {
+    productCode: { type: String, required: true, unique: true },
+    productName: { type: String, required: true },
+    category: {
+      type: String,
+      enum: Object.values(ProductCategory),
+      required: true,
+    },
+    thicknessInch: { type: Number, required: true },
+    grade: { type: String },
+    length: { type: Number, min: 0 },
+    weightPerUnit: { type: Number, min: 0 },
+    unit: {
+      type: String,
+      enum: Object.values(ProductUnit),
+      default: ProductUnit.KG,
+    },
+    pricePerUnit: { type: Number, required: true, min: 0 },
+    isActive: { type: Boolean, default: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  },
+  { timestamps: true },
+);
 
 // Indexes for performance
 productSchema.index({ productCode: 1 });

@@ -112,6 +112,59 @@ router.post("/verify-code", async (req: Request, res: Response) => {
 });
 
 // ============================================
+// BARBENDER SELF-REGISTRATION (Normal User Registration)
+// ============================================
+router.post("/register-barbender", async (req: Request, res: Response) => {
+  try {
+    const { countryCode, phoneNo, name, email } = req.body;
+    
+    // Validate required fields
+    if (!countryCode || !phoneNo || !name) {
+      return res.status(400).json({ error: "Country code, phone number, and name are required" });
+    }
+
+    const phoneNumber = parseInt(phoneNo);
+    if (isNaN(phoneNumber)) return res.status(400).json({ error: "Invalid phone number" });
+
+    // Check if user already exists
+    const existing = await User.findOne({ phoneNo: phoneNumber });
+    if (existing) {
+      return res.status(400).json({ error: "Phone number already registered" });
+    }
+
+    // Create new barbender user
+    const now = new Date();
+    const user = await new User({
+      countryCode: countryCode || "91", 
+      phoneNo: phoneNumber, 
+      name, 
+      email, 
+      role: UserRole.BARBENDER,  // Automatically set as barbender
+      status: UserStatus.PENDING, 
+      totalQuantityAvailable: 0, 
+      totalRewardEligible: 0,
+      isDeleted: false,
+      createdAt: now, 
+      updatedAt: now
+    }).save();
+
+    res.json({ 
+      success: true, 
+      message: "Registration successful! Please verify your phone number with OTP.", 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        phoneNo: user.phoneNo, 
+        role: user.role, 
+        status: user.status 
+      } 
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // SUPER ADMIN: Create ASO or Dealer
 // ============================================
 router.post("/create-user", async (req: Request, res: Response) => {
@@ -121,7 +174,7 @@ router.post("/create-user", async (req: Request, res: Response) => {
     // Validate role
     const validRoles = ["ASO", "DLR", "BBR"];
     if (!role || !validRoles.includes(role)) {
-      return res.status(400).json({ error: "Invalid role. Must be ASO or DLR" });
+      return res.status(400).json({ error: "Invalid role. Must be ASO, DLR, or BBR" });
     }
 
     // Validate admin
@@ -149,32 +202,6 @@ router.post("/create-user", async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// DEALER: Create Barbender
-// ============================================
-router.post("/dealer/create-barbender", async (req: Request, res: Response) => {
-  try {
-    const { countryCode, phoneNo, name, email, dealerId } = req.body;
-    const dealer = await User.findById(dealerId);
-    if (!dealer || dealer.role !== UserRole.DEALER || dealer.status !== UserStatus.ACTIVE) return res.status(403).json({ error: "Invalid or inactive dealer" });
-    if (dealer.isDeleted) return res.status(403).json({ error: "Dealer account deleted" });
-
-    const existing = await User.findOne({ phoneNo: parseInt(phoneNo) });
-    if (existing) return res.status(400).json({ error: "Phone number already registered" });
-
-    const barbender = await new User({
-      countryCode: countryCode || "91", phoneNo: parseInt(phoneNo), name, email, role: UserRole.BARBENDER,
-      status: UserStatus.PENDING,
-      createdBy: new mongoose.Types.ObjectId(dealerId),
-      totalQuantityAvailable: 0, totalRewardEligible: 0,
-      isDeleted: false
-    }).save();
-
-    res.json({ success: true, message: "Barbender created. User must verify via OTP.", user: { id: barbender._id, name: barbender.name, phoneNo: barbender.phoneNo, role: barbender.role, status: barbender.status } });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // ============================================
 // GET USER PROFILE
@@ -251,13 +278,44 @@ router.put("/profile", async (req: Request, res: Response) => {
 router.get("/users", async (req: Request, res: Response) => {
   try {
     const { role, adminId } = req.query;
+    console.log("=== /users endpoint called ===");
+    console.log("adminId:", adminId);
+    console.log("role filter:", role);
+    
+    // Validate adminId
+    if (!adminId || typeof adminId !== 'string') {
+      console.log("Missing or invalid adminId");
+      return res.status(400).json({ error: "Admin ID is required" });
+    }
+    
     const admin = await User.findById(adminId);
-    if (!admin || admin.role !== UserRole.SUPER_ADMIN) return res.status(403).json({ error: "Only Super Admin" });
-    const query: any = { isDeleted: false };
+    console.log("Admin found:", admin ? `Yes - ${admin.name} (${admin.role})` : "No");
+    
+    if (!admin || admin.role !== UserRole.SUPER_ADMIN) {
+      console.log("Access denied: Not a Super Admin");
+      return res.status(403).json({ error: "Only Super Admin can view users" });
+    }
+    
+    // Query for users: isDeleted must be false OR not exist (older users may not have this field)
+    const query: any = { 
+      $or: [
+        { isDeleted: false },
+        { isDeleted: { $exists: false } }
+      ]
+    };
     if (role) query.role = role;
+    
+    console.log("Query:", JSON.stringify(query));
+    
     const users = await User.find(query).select("-createdBy -createdAt -updatedAt");
+    console.log(`Found ${users.length} users`);
+    users.forEach(u => {
+      console.log(`  - ${u.name} (${u.role}) - ${u.status}`);
+    });
+    
     res.json({ users });
   } catch (error: any) {
+    console.error("Error in /users:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -283,41 +341,5 @@ router.put("/users/:id/status", async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// DEALER: List Barbenders
-// ============================================
-router.get("/dealer/barbenders", async (req: Request, res: Response) => {
-  try {
-    const { dealerId } = req.query;
-    const dealer = await User.findById(dealerId);
-    if (!dealer || dealer.role !== UserRole.DEALER) return res.status(403).json({ error: "Invalid dealer" });
-    const barbenders = await User.find({ role: UserRole.BARBENDER, createdBy: dealer._id, isDeleted: false }).select("name phoneNo status totalQuantityAvailable totalRewardEligible");
-    res.json({ barbenders });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// DEALER: Block/Delete Barbender
-// ============================================
-router.put("/dealer/barbender/:id/status", async (req: Request, res: Response) => {
-  try {
-    const { dealerId, status } = req.body;
-    const { id } = req.params;
-    const dealer = await User.findById(dealerId);
-    if (!dealer || dealer.role !== UserRole.DEALER) return res.status(403).json({ error: "Invalid dealer" });
-    const barbender = await User.findById(id);
-    if (!barbender || barbender.role !== UserRole.BARBENDER) return res.status(404).json({ error: "Barbender not found" });
-    if (barbender.createdBy?.toString() !== dealerId) return res.status(403).json({ error: "Not your barbender" });
-    if (status === "blocked") barbender.status = UserStatus.BLOCKED;
-    else if (status === "deleted") { barbender.status = UserStatus.DELETED; barbender.isDeleted = true; }
-    barbender.updatedAt = new Date();
-    await barbender.save();
-    res.json({ success: true, message: `Barbender ${status}` });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 export default router;

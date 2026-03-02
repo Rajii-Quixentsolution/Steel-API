@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 import User, { UserRole, UserStatus } from "../models/User";
-import { ASODMapping } from "../models/ASODMapping";
+import ASODMapping from "../models/mapping";
 
 const router = Router();
 
@@ -88,14 +88,11 @@ router.post("/aso-dealer", async (req: Request, res: Response) => {
 
     // Save to ASODMapping collection
     const mapping = await new ASODMapping({
-      asoId: new mongoose.Types.ObjectId(asoId),
-      asoName: aso.name,
-      dealerId: new mongoose.Types.ObjectId(dealerId),
-      dealerName: dealer.name,
-      dealerPhoneNo: dealer.phoneNo,
-      isActive: true,
-      createdBy: new mongoose.Types.ObjectId(adminId)
-    }).save();
+  fromId: new mongoose.Types.ObjectId(asoId),
+  toId: [new mongoose.Types.ObjectId(dealerId)],
+  isActive: true,
+  createdBy: new mongoose.Types.ObjectId(adminId)
+}).save();
 
     res.json({
       success: true,
@@ -124,8 +121,12 @@ router.get("/all", async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Only Super Admin" });
     }
 
+    // DEBUG: check what dealers actually look like in DB
+    const allDealers = await User.find({ role: UserRole.DEALER }).select("name assignedASO isDeleted");
+    console.log("All dealers:", JSON.stringify(allDealers));
+
     const mappings = await User.aggregate([
-      { $match: { role: UserRole.DEALER, assignedASO: { $ne: null }, isDeleted: false } },
+      { $match: { role: UserRole.DEALER, assignedASO: { $ne: null }, isDeleted: { $ne: true } } },
       { $lookup: { from: "users", localField: "assignedASO", foreignField: "_id", as: "aso" } },
       { $unwind: "$aso" },
       {
@@ -136,6 +137,7 @@ router.get("/all", async (req: Request, res: Response) => {
       }
     ]);
 
+    console.log("Mappings found:", JSON.stringify(mappings));
     res.json({ mappings });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -177,9 +179,9 @@ router.delete("/aso-dealer", async (req: Request, res: Response) => {
       
       // Delete from ASODMapping collection
       await ASODMapping.deleteOne({
-        asoId: previousASO,
-        dealerId: new mongoose.Types.ObjectId(dealerId)
-      });
+  fromId: previousASO,
+  toId: new mongoose.Types.ObjectId(dealerId)
+});
     }
 
     res.json({ success: true, message: "Mapping removed" });
