@@ -9,7 +9,7 @@ import { sendVerificationCode, generateOtp, createPhoneKey, OTP_EXPIRY_MS, OTP_R
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "steel-secret";
 const jwt = require("jsonwebtoken");
-
+ 
 const getWelcomeMessage = (role: string): string => {
   const messages: Record<string, string> = {
     SA: "Welcome, Super Admin!",

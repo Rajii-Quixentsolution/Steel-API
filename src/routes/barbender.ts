@@ -276,6 +276,7 @@ router.post("/dealer/sell", async (req: Request, res: Response) => {
     });
 
     const saleData = {
+      transactionType: "dealer_to_barbender", 
       dealerId: dealer._id,
       dealerName: dealer.name,
       barbenderId: barbender._id,

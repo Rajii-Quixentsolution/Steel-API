@@ -10,6 +10,8 @@ import productRouter from "./routes/product";
 import dashboardRouter from "./routes/dashboard";
 import areaRouter from "./routes/area";
 import stockDispatchRouter from "./routes/stock-dispatch";
+import barbenderRouter from "./routes/barbender";
+
 
 const app = express();
 
@@ -35,6 +37,7 @@ app.use("/v1/product", productRouter);
 app.use("/v1/dashboard", dashboardRouter);
 app.use("/v1/area", areaRouter);
 app.use("/v1/stock-dispatch", stockDispatchRouter); 
+app.use("/v1/barbender", barbenderRouter);
 
 // Test endpoint
 app.get("/test", (_req, res) => {

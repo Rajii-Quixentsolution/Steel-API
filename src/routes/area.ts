@@ -299,6 +299,130 @@ router.get("/building/:id", async (req: Request, res: Response) => {
 });
 
 // ============================================
+// DELETE ENDPOINTS (Super Admin Only)
+// ============================================
+
+// Delete Area
+router.delete("/area/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { adminId } = req.body;
+
+    // Validate admin
+    if (!adminId) {
+      return res.status(400).json({ error: "adminId is required" });
+    }
+
+    const admin = await User.findById(adminId);
+    if (!admin || admin.role !== UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ error: "Only Super Admin can delete areas" });
+    }
+
+    const areaId = Number(id);
+    
+    // Check if area exists
+    const area = await Areas.findOne({ id: areaId });
+    if (!area) {
+      return res.status(404).json({ error: "Area not found" });
+    }
+
+    // Check if there are any locations in this area
+    const locationCount = await Locations.countDocuments({ areaId: areaId });
+    if (locationCount > 0) {
+      return res.status(400).json({ error: "Cannot delete area with existing locations. Delete locations first." });
+    }
+
+    await Areas.deleteOne({ id: areaId });
+
+    res.json({
+      success: true,
+      message: `Area "${area.name}" deleted successfully`
+    });
+  } catch (error: any) {
+    console.error("Delete area error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Location
+router.delete("/location/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { adminId } = req.body;
+
+    // Validate admin
+    if (!adminId) {
+      return res.status(400).json({ error: "adminId is required" });
+    }
+
+    const admin = await User.findById(adminId);
+    if (!admin || admin.role !== UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ error: "Only Super Admin can delete locations" });
+    }
+
+    const locationId = Number(id);
+    
+    // Check if location exists
+    const location = await Locations.findOne({ id: locationId });
+    if (!location) {
+      return res.status(404).json({ error: "Location not found" });
+    }
+
+    // Check if there are any buildings in this location
+    const buildingCount = await Buildings.countDocuments({ locId: locationId });
+    if (buildingCount > 0) {
+      return res.status(400).json({ error: "Cannot delete location with existing buildings. Delete buildings first." });
+    }
+
+    await Locations.deleteOne({ id: locationId });
+
+    res.json({
+      success: true,
+      message: `Location "${location.name}" deleted successfully`
+    });
+  } catch (error: any) {
+    console.error("Delete location error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Building
+router.delete("/building/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { adminId } = req.body;
+
+    // Validate admin
+    if (!adminId) {
+      return res.status(400).json({ error: "adminId is required" });
+    }
+
+    const admin = await User.findById(adminId);
+    if (!admin || admin.role !== UserRole.SUPER_ADMIN) {
+      return res.status(403).json({ error: "Only Super Admin can delete buildings" });
+    }
+
+    const buildingId = Number(id);
+    
+    // Check if building exists
+    const building = await Buildings.findOne({ id: buildingId });
+    if (!building) {
+      return res.status(404).json({ error: "Building not found" });
+    }
+
+    await Buildings.deleteOne({ id: buildingId });
+
+    res.json({
+      success: true,
+      message: `Building "${building.name}" deleted successfully`
+    });
+  } catch (error: any) {
+    console.error("Delete building error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // GET FULL HIERARCHY
 // ============================================
 
