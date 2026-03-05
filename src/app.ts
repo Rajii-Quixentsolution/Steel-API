@@ -5,6 +5,7 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import authRouter from "./routes/auth";
+import companyRouter from "./routes/company";
 import mappingRouter from "./routes/mapping";
 import productRouter from "./routes/product";
 import dashboardRouter from "./routes/dashboard";
@@ -32,6 +33,7 @@ app.get("/health", (_req, res) => {
 
 // API Routes - Using lead's models
 app.use("/v1/auth", authRouter);
+app.use("/v1/company", companyRouter);
 app.use("/v1/mapping", mappingRouter);
 app.use("/v1/product", productRouter);
 app.use("/v1/dashboard", dashboardRouter);

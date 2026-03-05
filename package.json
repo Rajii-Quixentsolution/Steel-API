@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
-    "seed": "ts-node src/seed/seedUsers.ts"
+    "seed": "ts-node src/seed/seedUsers.ts",
+    "seed:companies": "ts-node src/seed/companies.ts"
   },
   "dependencies": {
     "axios": "^1.6.2",

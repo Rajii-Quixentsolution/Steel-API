@@ -5,6 +5,7 @@ export enum UserRole {
   ASO = "ASO",
   DEALER = "DLR",
   BARBENDER = "BBR",
+  COMPANY_ADMIN = "COMPANY_ADMIN",
 }
 
 export enum UserStatus {
@@ -35,6 +36,11 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   updatedBy?: mongoose.Types.ObjectId;
+  
+  // Company relationships
+  companyId?: mongoose.Types.ObjectId; // For ASO (single company - strict rule)
+  companyIds?: mongoose.Types.ObjectId[]; // For BBR & Dealer (multiple companies)
+  isCompanyAdmin: boolean; // Flag for company admin users
 }
 
 const userSchema = new Schema<IUser>(
@@ -79,6 +85,22 @@ const userSchema = new Schema<IUser>(
       type: mongoose.Schema.Types.ObjectId, 
       ref: "User" 
     }],
+    
+    // Company relationships
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      default: null,
+    },
+    companyIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company"
+    }],
+    isCompanyAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    
     qrCode: { type: String },
     isDeleted: { type: Boolean, default: false },
     totalQuantityAvailable: { type: Number, default: 0 },
